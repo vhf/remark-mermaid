@@ -101,6 +101,8 @@ function visitCodeBlock(ast, vFile, isSimple) {
       return node;
     }
 
+    const asString = vFile.data.asString;
+
     // Are we just transforming to a <div>, or replacing with an image?
     if (isSimple) {
       newNode = createMermaidDiv(value);
@@ -109,9 +111,9 @@ function visitCodeBlock(ast, vFile, isSimple) {
 
     // Otherwise, let's try and generate a graph!
     } else {
-      let graphSvgFilename;
+      let svg;
       try {
-        graphSvgFilename = render(value, destinationDir);
+        svg = render(value, destinationDir, asString);
 
         vFile.info(`${lang} code block replaced with graph`, position, PLUGIN_NAME);
       } catch (error) {
@@ -119,11 +121,18 @@ function visitCodeBlock(ast, vFile, isSimple) {
         return node;
       }
 
-      newNode = {
-        type: 'image',
-        title: '`mermaid` image',
-        url: graphSvgFilename,
-      };
+      if (asString) {
+        newNode = {
+          type: 'html',
+          value: svg,
+        };
+      } else {
+        newNode = {
+          type: 'image',
+          title: '`mermaid` image',
+          url: svg,
+        };
+      }
     }
 
     parent.children.splice(index, 1, newNode);
