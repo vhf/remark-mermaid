@@ -1,11 +1,11 @@
 const fs = require('fs-extra');
 const visit = require('unist-util-visit');
-const utils = require('./utils');
-
-const render = utils.render;
-const renderFromFile = utils.renderFromFile;
-const getDestinationDir = utils.getDestinationDir;
-const createMermaidDiv = utils.createMermaidDiv;
+const {
+  render,
+  renderFromFile,
+  getDestinationDir,
+  createMermaidDiv,
+} = require('./utils');
 
 const PLUGIN_NAME = 'remark-mermaid';
 
@@ -35,16 +35,18 @@ function replaceUrlWithGraph(node, vFile) {
     return node;
   }
 
-  try {
-    // eslint-disable-next-line no-param-reassign
-    node.url = renderFromFile(`${vFile.dirname}/${url}`, destinationDir);
+  return new Promise((resolve, reject) => {
+    renderFromFile(`${vFile.dirname}/${url}`, destinationDir, (err, fileURL) => {
+      if (err) {
+        vFile.message(err, position, PLUGIN_NAME);
+        reject(err);
+      }
 
-    vFile.info('mermaid link replaced with link to graph', position, PLUGIN_NAME);
-  } catch (error) {
-    vFile.message(error, position, PLUGIN_NAME);
-  }
-
-  return node;
+      node.url = fileURL; // eslint-disable-line no-param-reassign
+      vFile.info('mermaid link replaced with link to graph', position, PLUGIN_NAME);
+      resolve(node);
+    });
+  });
 }
 
 /**
@@ -91,54 +93,63 @@ function replaceLinkWithEmbedded(node, index, parent, vFile) {
  * @return {function}
  */
 function visitCodeBlock(ast, vFile, isSimple) {
-  return visit(ast, 'code', (node, index, parent) => {
+  const promises = [Promise.resolve()];
+
+  visit(ast, 'code', (node, index, parent) => {
     const { lang, value, position } = node;
     const destinationDir = getDestinationDir(vFile);
-    let newNode;
 
-    // If this codeblock is not mermaid, bail.
-    if (lang !== 'mermaid') {
-      return node;
-    }
+    const promise = new Promise((resolve, reject) => {
+      let newNode;
 
-    const asString = vFile.data.asString;
+      const asString = vFile.data.asString;
 
-    // Are we just transforming to a <div>, or replacing with an image?
-    if (isSimple) {
-      newNode = createMermaidDiv(value);
+      // If this codeblock is not mermaid, bail.
+      if (lang !== 'mermaid') {
+        return resolve();
+      }
 
-      vFile.info(`${lang} code block replaced with div`, position, PLUGIN_NAME);
+      // Are we just transforming to a <div>, or replacing with an image?
+      if (isSimple) {
+        vFile.info(`${lang} code block replaced with div`, position, PLUGIN_NAME);
+        newNode = createMermaidDiv(value);
+        parent.children.splice(index, 1, newNode);
 
-    // Otherwise, let's try and generate a graph!
-    } else {
-      let svg;
-      try {
-        svg = render(value, destinationDir, asString);
+        return resolve();
+      }
+
+      // Otherwise, let's try and generate a graph!
+      return render(value, destinationDir, asString, (err, svg) => {
+        if (err) {
+          vFile.message(err, position, PLUGIN_NAME);
+          reject(err);
+        }
 
         vFile.info(`${lang} code block replaced with graph`, position, PLUGIN_NAME);
-      } catch (error) {
-        vFile.message(error, position, PLUGIN_NAME);
-        return node;
-      }
 
-      if (asString) {
-        newNode = {
-          type: 'html',
-          value: svg,
-        };
-      } else {
-        newNode = {
-          type: 'image',
-          title: '`mermaid` image',
-          url: svg,
-        };
-      }
-    }
+        if (asString) {
+          newNode = {
+            type: 'html',
+            value: svg,
+          };
+        } else {
+          newNode = {
+            type: 'image',
+            title: '`mermaid` image',
+            url: svg,
+          };
+        }
 
-    parent.children.splice(index, 1, newNode);
+        parent.children.splice(index, 1, newNode);
 
-    return node;
+        resolve();
+      });
+    });
+
+    promises.push(promise);
   });
+
+  return Promise.all(promises);
 }
 
 /**
@@ -152,11 +163,17 @@ function visitCodeBlock(ast, vFile, isSimple) {
  * @return {function}
  */
 function visitLink(ast, vFile, isSimple) {
+  const promises = [Promise.resolve()];
+
   if (isSimple) {
-    return visit(ast, 'link', (node, index, parent) => replaceLinkWithEmbedded(node, index, parent, vFile));
+    visit(ast, 'link', (node, index, parent) => replaceLinkWithEmbedded(node, index, parent, vFile));
   }
 
-  return visit(ast, 'link', node => replaceUrlWithGraph(node, vFile));
+  visit(ast, 'link', (node) => {
+    promises.push(replaceUrlWithGraph(node, vFile));
+  });
+
+  return Promise.all(promises);
 }
 
 /**
@@ -170,11 +187,17 @@ function visitLink(ast, vFile, isSimple) {
  * @return {function}
  */
 function visitImage(ast, vFile, isSimple) {
+  const promises = [Promise.resolve()];
+
   if (isSimple) {
-    return visit(ast, 'image', (node, index, parent) => replaceLinkWithEmbedded(node, index, parent, vFile));
+    visit(ast, 'image', (node, index, parent) => replaceLinkWithEmbedded(node, index, parent, vFile));
   }
 
-  return visit(ast, 'image', node => replaceUrlWithGraph(node, vFile));
+  visit(ast, 'image', (node) => {
+    promises.push(replaceUrlWithGraph(node, vFile));
+  });
+
+  return Promise.all(promises);
 }
 
 /**
@@ -196,19 +219,13 @@ function mermaid(options = {}) {
   /**
    * @param {object} ast MDAST
    * @param {vFile} vFile
-   * @param {function} next
    * @return {object}
    */
-  return function transformer(ast, vFile, next) {
-    visitCodeBlock(ast, vFile, simpleMode);
-    visitLink(ast, vFile, simpleMode);
-    visitImage(ast, vFile, simpleMode);
-
-    if (typeof next === 'function') {
-      return next(null, ast, vFile);
-    }
-
-    return ast;
+  return function transformer(ast, vFile) {
+    return visitCodeBlock(ast, vFile, simpleMode)
+      .then(() => visitLink(ast, vFile, simpleMode))
+      .then(() => visitImage(ast, vFile, simpleMode))
+      .then(() => ast);
   };
 }
 

@@ -1,3 +1,4 @@
+/* eslint-disable no-shadow */
 const path = require('path');
 const parse = require('remark-parse');
 const stringify = require('remark-stringify');
@@ -17,6 +18,8 @@ function addMetadata(vFile, destinationFilePath) {
   };
 }
 
+jest.setTimeout(60000);
+
 describe('remark-mermaid', () => {
   it('it ignores markdown that does not have mermaid references', () => {
     const srcFile = `${fixturesDir}/simple.md`;
@@ -24,9 +27,10 @@ describe('remark-mermaid', () => {
     const vfile = toVFile.readSync(srcFile);
     addMetadata(vfile, destFile);
 
-    const result = remark().use(mermaid).processSync(vfile).toString();
-    expect(result).not.toMatch(/!\[\]\(\.\/\w+\.svg/);
-    expect(vfile.messages).toHaveLength(0);
+    return remark().use(mermaid).process(vfile).then((vfile) => {
+      expect(vfile.contents).not.toMatch(/!\[\]\(\.\/\w+\.svg/);
+      expect(vfile.messages).toHaveLength(0);
+    });
   });
 
   it('can handle code blocks', () => {
@@ -35,9 +39,10 @@ describe('remark-mermaid', () => {
     const vfile = toVFile.readSync(srcFile);
     addMetadata(vfile, destFile);
 
-    const result = remark().use(mermaid).processSync(vfile).toString();
-    expect(result).toMatch(/!\[\]\(\.\/\w+\.svg/);
-    expect(vfile.messages[0].message).toBe('mermaid code block replaced with graph');
+    return remark().use(mermaid).process(vfile).then((vfile) => {
+      expect(vfile.contents).toMatch(/!\[\]\(\.\/\w+\.svg/);
+      expect(vfile.messages[0].message).toBe('mermaid code block replaced with graph');
+    });
   });
 
   it('can handle code blocks to svg string', () => {
@@ -48,9 +53,10 @@ describe('remark-mermaid', () => {
 
     vfile.data.asString = true;
 
-    const result = remark().use(mermaid).processSync(vfile).toString();
-    expect(result).toMatch(/<svg id="[\s\S]*<\/svg>/);
-    expect(vfile.messages[0].message).toBe('mermaid code block replaced with graph');
+    return remark().use(mermaid).process(vfile).then((vfile) => {
+      expect(vfile.contents).toMatch(/<svg id="[\s\S]*<\/svg>/);
+      expect(vfile.messages[0].message).toBe('mermaid code block replaced with graph');
+    });
   });
 
   it('can handle mermaid images', () => {
@@ -59,9 +65,10 @@ describe('remark-mermaid', () => {
     const vfile = toVFile.readSync(srcFile);
     addMetadata(vfile, destFile);
 
-    const result = remark().use(mermaid).processSync(vfile).toString();
-    expect(result).toMatch(/!\[Example\]\(\.\/\w+\.svg/);
-    expect(vfile.messages[0].message).toBe('mermaid link replaced with link to graph');
+    return remark().use(mermaid).process(vfile).then((vfile) => {
+      expect(vfile.contents).toMatch(/!\[Example\]\(\.\/\w+\.svg/);
+      expect(vfile.messages[0].message).toBe('mermaid link replaced with link to graph');
+    });
   });
 
   it('can handle mermaid links', () => {
@@ -70,9 +77,25 @@ describe('remark-mermaid', () => {
     const vfile = toVFile.readSync(srcFile);
     addMetadata(vfile, destFile);
 
-    const result = remark().use(mermaid).processSync(vfile).toString();
-    expect(result).toMatch(/\[Example\]\(\.\/\w+\.svg/);
-    expect(vfile.messages[0].message).toBe('mermaid link replaced with link to graph');
+    return remark().use(mermaid).process(vfile).then((file) => {
+      expect(file.contents).toMatch(/\[Example\]\(\.\/\w+\.svg/);
+      expect(vfile.messages[0].message).toBe('mermaid link replaced with link to graph');
+    });
+  });
+
+  it('can handle a big mix of everything', () => {
+    const srcFile = `${fixturesDir}/mix.md`;
+    const destFile = `${runtimeDir}/mix.md`;
+    const vfile = toVFile.readSync(srcFile);
+    addMetadata(vfile, destFile);
+
+    return remark().use(mermaid).process(vfile).then((vfile) => {
+      expect(vfile.contents).toMatchSnapshot();
+      const blocks = vfile.messages.filter(s => s.contains('with graph'));
+      const links = vfile.messages.filter(s => s.contains('with link'));
+      expect(blocks.length).toBe(4);
+      expect(links.length).toBe(4);
+    });
   });
 
   describe('simple mode', () => {
@@ -82,9 +105,10 @@ describe('remark-mermaid', () => {
       const vfile = toVFile.readSync(srcFile);
       addMetadata(vfile, destFile);
 
-      const result = remark().use(mermaid, { simple: true }).processSync(vfile).toString();
-      expect(result).toMatch(/class=\"mermaid\"/);
-      expect(vfile.messages[0].message).toBe('mermaid code block replaced with div');
+      return remark().use(mermaid, { simple: true }).process(vfile).then((vfile) => {
+        expect(vfile.contents).toMatch(/class=\"mermaid\"/);
+        expect(vfile.messages[0].message).toBe('mermaid code block replaced with div');
+      });
     });
 
     it('can handle mermaid images in simple mode', () => {
@@ -93,9 +117,10 @@ describe('remark-mermaid', () => {
       const vfile = toVFile.readSync(srcFile);
       addMetadata(vfile, destFile);
 
-      const result = remark().use(mermaid, { simple: true }).processSync(vfile).toString();
-      expect(result).toMatch(/class=\"mermaid\"/);
-      expect(vfile.messages[0].message).toBe('mermaid link replaced with div');
+      return remark().use(mermaid, { simple: true }).process(vfile).then((vfile) => {
+        expect(vfile.contents).toMatch(/class=\"mermaid\"/);
+        expect(vfile.messages[0].message).toBe('mermaid link replaced with div');
+      });
     });
 
     it('can handle mermaid links in simple mode', () => {
@@ -104,9 +129,10 @@ describe('remark-mermaid', () => {
       const vfile = toVFile.readSync(srcFile);
       addMetadata(vfile, destFile);
 
-      const result = remark().use(mermaid, { simple: true }).processSync(vfile).toString();
-      expect(result).toMatch(/class=\"mermaid\"/);
-      expect(vfile.messages[0].message).toBe('mermaid link replaced with div');
+      return remark().use(mermaid, { simple: true }).process(vfile).then((vfile) => {
+        expect(vfile.contents).toMatch(/class=\"mermaid\"/);
+        expect(vfile.messages[0].message).toBe('mermaid link replaced with div');
+      });
     });
   });
 });

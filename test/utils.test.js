@@ -17,29 +17,26 @@ function addMetadata(vFile, destinationFilePath) {
 }
 
 describe('remark-mermaid utils', () => {
-  it('renders a mermaid graph', () => {
+  it('renders a mermaid graph to SVG', () => {
     const mermaidExample = fs.readFileSync(`${fixturesDir}/example.mmd`, 'utf8');
-    let renderedGraphFile;
 
-    try {
-      renderedGraphFile = render(mermaidExample, runtimeDir);
-    } catch (err) {
-      console.error(err.message);
-    }
+    render(mermaidExample, runtimeDir, true, (err, renderedSVGString) => {
+      expect(renderedSVGString).not.toBeUndefined();
+    });
+  });
 
-    expect(renderedGraphFile).not.toBeUndefined();
+  it('renders a mermaid graph to file', () => {
+    const mermaidExample = fs.readFileSync(`${fixturesDir}/example.mmd`, 'utf8');
+
+    render(mermaidExample, runtimeDir, (err, renderedGraphFile) => {
+      expect(renderedGraphFile).not.toBeUndefined();
+    });
   });
 
   it('renders from a file a mermaid graph', () => {
-    let renderedGraphFile;
-
-    try {
-      renderedGraphFile = renderFromFile(`${fixturesDir}/example.mmd`, runtimeDir);
-    } catch (err) {
-      console.error(err.message);
-    }
-
-    expect(renderedGraphFile).not.toBeUndefined();
+    renderFromFile(`${fixturesDir}/example.mmd`, runtimeDir, (err, renderedGraphFile) => {
+      expect(renderedGraphFile).not.toBeUndefined();
+    });
   });
 
   it('handles explicity set destination', () => {

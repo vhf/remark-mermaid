@@ -1,0 +1,55 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`remark-mermaid can handle a big mix of everything 1`] = `
+"# mermaid code block
+
+![](./cc314291256b4fe90293ec53fdf97a00d652e5c1.svg \\"\`mermaid\` image\\")
+
+# mermaid image
+
+![Example](./bd582c6a57e1a09aa68906eb898c45f44f1cd6d6.svg \\"mermaid:\\")
+
+# mermaid code block
+
+![](./cc314291256b4fe90293ec53fdf97a00d652e5c1.svg \\"\`mermaid\` image\\")
+
+![](./cc314291256b4fe90293ec53fdf97a00d652e5c1.svg \\"\`mermaid\` image\\")
+
+\`\`\`md
+graph LR
+    Start --> Stop
+\`\`\`
+
+![](./cc314291256b4fe90293ec53fdf97a00d652e5c1.svg \\"\`mermaid\` image\\")
+
+# mermaid link
+
+-   [Example](./bd582c6a57e1a09aa68906eb898c45f44f1cd6d6.svg \\"mermaid:\\")
+-   [Example](./bd582c6a57e1a09aa68906eb898c45f44f1cd6d6.svg \\"mermaid:\\")
+
+# Lorem ipsum
+
+Here is a paragraph with _some emphasis_ and some **strong text**, and a [link](http://google.com \\"title\\"). I ~~did~~ want to fix this.
+
+\`\`\`bash
+$ npm i
+\`\`\`
+
+-   ![Example](./bd582c6a57e1a09aa68906eb898c45f44f1cd6d6.svg \\"mermaid:\\")
+-   ![Example](./bd582c6a57e1a09aa68906eb898c45f44f1cd6d6.svg \\"mermaid:\\")
+"
+`;
+
+exports[`remark-mermaid can handle a big mix of everything 2`] = `
+Array [
+  [/Volumes/repositories/zds/zmarkdown/packages/remark-mermaid/test/fixtures/mix.md:37:3-37:36: mermaid link replaced with link to graph],
+  [/Volumes/repositories/zds/zmarkdown/packages/remark-mermaid/test/fixtures/mix.md:36:3-36:36: mermaid link replaced with link to graph],
+  [/Volumes/repositories/zds/zmarkdown/packages/remark-mermaid/test/fixtures/mix.md:14:1-17:4: mermaid code block replaced with graph],
+  [/Volumes/repositories/zds/zmarkdown/packages/remark-mermaid/test/fixtures/mix.md:19:1-22:4: mermaid code block replaced with graph],
+  [/Volumes/repositories/zds/zmarkdown/packages/remark-mermaid/test/fixtures/mix.md:29:1-32:4: mermaid code block replaced with graph],
+  [/Volumes/repositories/zds/zmarkdown/packages/remark-mermaid/test/fixtures/mix.md:10:1-10:35: mermaid link replaced with link to graph],
+  [/Volumes/repositories/zds/zmarkdown/packages/remark-mermaid/test/fixtures/mix.md:3:1-6:4: mermaid code block replaced with graph],
+  [/Volumes/repositories/zds/zmarkdown/packages/remark-mermaid/test/fixtures/mix.md:47:3-47:37: mermaid link replaced with link to graph],
+  [/Volumes/repositories/zds/zmarkdown/packages/remark-mermaid/test/fixtures/mix.md:48:3-48:37: mermaid link replaced with link to graph],
+]
+`;

@@ -1,8 +1,9 @@
+const { series } = require('async');
 const crypto = require('crypto');
 const fs = require('fs-extra');
 const path = require('path');
 const which = require('npm-which')(__dirname);
-const execSync = require('child_process').execSync;
+const { exec } = require('child_process');
 
 const PLUGIN_NAME = 'remark-mermaid';
 
@@ -14,29 +15,32 @@ const PLUGIN_NAME = 'remark-mermaid';
  * @param  {string} destination
  * @return {string}
  */
-function render(source, destination, asString) {
+
+function render(source, destination, asString, callback) {
+  if (arguments.length === 3) callback = asString
   const unique = crypto.createHmac('sha1', PLUGIN_NAME).update(source).digest('hex');
   const mmdcExecutable = which.sync('mmdc');
   const mmdPath = path.join(destination, `${unique}.mmd`);
   const svgFilename = `${unique}.svg`;
   const svgPath = path.join(destination, svgFilename);
 
-  // Write temporary file
-  fs.outputFileSync(mmdPath, source);
-
-  // Invoke mermaid.cli
-  execSync(`${mmdcExecutable} -i ${mmdPath} -o ${svgPath} -b transparent`);
-
-  // Clean up temporary file
-  fs.removeSync(mmdPath);
-
-  if (asString) {
-    const string = fs.readFileSync(svgPath).toString();
-    fs.removeSync(svgPath);
-    return string;
-  }
-
-  return `./${svgFilename}`;
+  series([
+    // Write temporary file
+    cb => fs.outputFile(mmdPath, source, cb),
+    // Invoke mermaid.cli
+    cb => exec(`${mmdcExecutable} -i ${mmdPath} -o ${svgPath} -b transparent`, cb),
+    // Clean up temporary file
+    cb => fs.remove(mmdPath, cb),
+  ], (err) => {
+    if (err) return callback(err);
+    if (asString) {
+      return fs.readFile(svgPath, (err, content) => {
+        if (err) return callback(err);
+        return callback(null, content.toString());
+      })
+    }
+    return callback(null, `./${svgFilename}`);
+  });
 }
 
 /**
@@ -47,16 +51,17 @@ function render(source, destination, asString) {
  * @param  {string} source
  * @return {string}
  */
-function renderFromFile(inputFile, destination) {
+function renderFromFile(inputFile, destination, callback) {
   const unique = crypto.createHmac('sha1', PLUGIN_NAME).update(inputFile).digest('hex');
   const mmdcExecutable = which.sync('mmdc');
   const svgFilename = `${unique}.svg`;
   const svgPath = path.join(destination, svgFilename);
 
   // Invoke mermaid.cli
-  execSync(`${mmdcExecutable} -i ${inputFile} -o ${svgPath} -b transparent`);
-
-  return `./${svgFilename}`;
+  exec(`${mmdcExecutable} -i ${inputFile} -o ${svgPath} -b transparent`, (err) => {
+    if (err) return callback(err);
+    return callback(null, `./${svgFilename}`);
+  });
 }
 
 /**
